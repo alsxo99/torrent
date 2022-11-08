@@ -652,8 +652,8 @@ int client_routine ()
         //          If request_block_from_peer() returns -1, the request failed. 
         //          If the request has failed AND peer_req_num is more than PEER_EVICTION_REQ_NUM, 
         //          evict the peer from the torrent using remove_peer_from_torrent().
-        
-        for (int peer_idx = 0; peer_idx < global_torrent_list[update_torrent_idx]->num_peers; peer_idx++) // i 는 peer의 index
+        // 위와 거의 흡사한 로직이다.
+        for (int peer_idx = 0; peer_idx < global_torrent_list[update_torrent_idx]->num_peers; peer_idx++) 
         {
             if (is_peer_requested_add_if_not(linked_list_for_tracking_if_requested, 
             global_torrent_list[update_torrent_idx]->peer_ip[peer_idx], global_torrent_list[update_torrent_idx]->peer_port[peer_idx]) == 1)
@@ -686,7 +686,7 @@ int client_routine ()
         //          If request_block_from_peer() returns -1, the request failed. 
         //          If the request has failed AND peer_req_num is more than PEER_EVICTION_REQ_NUM, 
         //          evict the peer from the torrent using remove_peer_from_torrent().
-        
+        // 위와 거의 흡사한 로직이다.
         for (int peer_idx = 0; peer_idx < global_torrent_list[update_torrent_idx]->num_peers; peer_idx++)
         {
             if (is_peer_requested_add_if_not(linked_list_for_tracking_if_requested, 
