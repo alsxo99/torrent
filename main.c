@@ -591,6 +591,7 @@ int client_routine ()
                 {
                     if (torrent->peer_block_info[peer_idx][block_idx] == 1) // if문 내부의 peer_idx는 내가 없는 block을 가지고 있는 peer의 index이다.
                     {
+                        // 이미 linked list에 있다면, 요청을 보내지 않고 continue할 것이고, 없다면 linked list에 add되고 아래에서 요청을 보낼 것이다.
                         if (is_peer_requested_add_if_not(linked_list_for_tracking_if_requested, 
                             torrent->peer_ip[peer_idx], torrent->peer_port[peer_idx]) == 1)
                         {
@@ -627,6 +628,7 @@ int client_routine ()
     }
     free_peer_linked_list(linked_list_for_tracking_if_requested);
 
+    linked_list_for_tracking_if_requested = calloc (1, sizeof(peer_linked_list));
     // Iterate through the global torrent list on "peer_update_interval_msec" and 
     // request block info update from all peers on the selected torrent.
     // Also, select a random peer and request its peer list, to get more peers.
@@ -650,6 +652,34 @@ int client_routine ()
         //          If request_block_from_peer() returns -1, the request failed. 
         //          If the request has failed AND peer_req_num is more than PEER_EVICTION_REQ_NUM, 
         //          evict the peer from the torrent using remove_peer_from_torrent().
+        
+        for (int peer_idx = 0; peer_idx < global_torrent_list[update_torrent_idx]->num_peers; peer_idx++) // i 는 peer의 index
+        {
+            if (is_peer_requested_add_if_not(linked_list_for_tracking_if_requested, 
+            global_torrent_list[update_torrent_idx]->peer_ip[peer_idx], global_torrent_list[update_torrent_idx]->peer_port[peer_idx]) == 1)
+            {
+                continue;
+            }
+
+            int result = -1;
+            while (result == -1)
+            {
+                result = request_block_info_from_peer(global_torrent_list[update_torrent_idx]->peer_ip[peer_idx], 
+                global_torrent_list[update_torrent_idx]->peer_port[peer_idx], global_torrent_list[update_torrent_idx]->hash);
+
+                global_torrent_list[update_torrent_idx]->peer_req_num[peer_idx] += 1;
+
+                if (result == 0)
+                    global_torrent_list[update_torrent_idx]->peer_req_num[peer_idx] = 0;
+                
+                if (result == -1 && global_torrent_list[update_torrent_idx]->peer_req_num[peer_idx] > PEER_EVICTION_REQ_NUM)
+                {
+                    remove_peer_from_torrent(global_torrent_list[update_torrent_idx],
+                    global_torrent_list[update_torrent_idx]->peer_ip[peer_idx], global_torrent_list[update_torrent_idx]->peer_port[peer_idx]);
+                }
+            }
+            
+        }
 
         // TODO:    Implement peer list request on selected torrent for a random peer on the peer list. (10 Points)
         // Hint:    Use request_peers_from_peer() to request the peer list. Increment peer_req_num for the peer.
@@ -657,7 +687,34 @@ int client_routine ()
         //          If the request has failed AND peer_req_num is more than PEER_EVICTION_REQ_NUM, 
         //          evict the peer from the torrent using remove_peer_from_torrent().
         
+        for (int peer_idx = 0; peer_idx < global_torrent_list[update_torrent_idx]->num_peers; peer_idx++)
+        {
+            if (is_peer_requested_add_if_not(linked_list_for_tracking_if_requested, 
+            global_torrent_list[update_torrent_idx]->peer_ip[peer_idx], global_torrent_list[update_torrent_idx]->peer_port[peer_idx]) == 1)
+            {
+                continue;
+            }
+
+            int result = -1;
+            while (result == -1)
+            {
+                result = request_peers_from_peer(global_torrent_list[update_torrent_idx]->peer_ip[peer_idx],
+                global_torrent_list[update_torrent_idx]->peer_port[peer_idx], global_torrent_list[update_torrent_idx]->hash);
+
+                global_torrent_list[update_torrent_idx]->peer_req_num[peer_idx] += 1;
+
+                if (result == 0)
+                    global_torrent_list[update_torrent_idx]->peer_req_num[peer_idx] = 0;
+                
+                if (result == -1 && global_torrent_list[update_torrent_idx]->peer_req_num[peer_idx] > PEER_EVICTION_REQ_NUM)
+                {
+                    remove_peer_from_torrent(global_torrent_list[update_torrent_idx],
+                    global_torrent_list[update_torrent_idx]->peer_ip[peer_idx], global_torrent_list[update_torrent_idx]->peer_port[peer_idx]);
+                }
+            }
+        }
     }
+    free_peer_linked_list(linked_list_for_tracking_if_requested);
     return 0;
 }
 
@@ -731,9 +788,9 @@ int main(int argc, char *argv[])
         while (1) 
         {
             // Run server & client routines concurrently
-            server_routine_ans(sockfd);     // Your implementation of server_routine() should be able to replace server_routine_ans() in this line.
-            client_routine_ans();           // Your implementation of client_routine() should be able to replace client_routine_ans() in this line.
-            server_routine_ans(sockfd);     // Your implementation of server_routine() should be able to replace server_routine_ans() in this line.
+            server_routine(sockfd);     // Your implementation of server_routine() should be able to replace server_routine_ans() in this line.
+            client_routine();           // Your implementation of client_routine() should be able to replace client_routine_ans() in this line.
+            server_routine(sockfd);     // Your implementation of server_routine() should be able to replace server_routine_ans() in this line.
 
             // Take some action every "SLEEP_TIME_MSEC" milliseconds
             if (start_time == 0 || start_time + SLEEP_TIME_MSEC < get_time_msec())
@@ -774,9 +831,9 @@ int main(int argc, char *argv[])
         while (1) 
         {
             // Run server & client routines concurrently
-            server_routine_ans(sockfd);     // Your implementation of server_routine() should be able to replace server_routine_ans() in this line.
-            client_routine_ans();           // Your implementation of client_routine() should be able to replace client_routine_ans() in this line.
-            server_routine_ans(sockfd);     // Your implementation of server_routine() should be able to replace server_routine_ans() in this line.
+            server_routine(sockfd);     // Your implementation of server_routine() should be able to replace server_routine_ans() in this line.
+            client_routine();           // Your implementation of client_routine() should be able to replace client_routine_ans() in this line.
+            server_routine(sockfd);     // Your implementation of server_routine() should be able to replace server_routine_ans() in this line.
 
             // Take some action every "SLEEP_TIME_MSEC" milliseconds
             if (start_time == 0 || start_time + SLEEP_TIME_MSEC < get_time_msec())
